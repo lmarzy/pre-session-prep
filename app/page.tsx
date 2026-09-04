@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownToLine, ArrowUpFromLine, Camera, Check, ChevronRight, ClipboardCheck,
+  ArrowDownToLine, ArrowUpFromLine, Camera, ChartCandlestick, Check, ChevronRight, ClipboardCheck,
   FileJson, Image as ImageIcon, Plus, Search, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -136,7 +136,7 @@ export default function Home() {
   const exportJson = () => {
     const payload = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), sessions }, null, 2);
     const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = `orb-journal-${today()}.json`;
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = `session-prep-${today()}.json`;
     anchor.click(); URL.revokeObjectURL(url);
     setMessage(`${sessions.length} session${sessions.length === 1 ? '' : 's'} exported.`);
   };
@@ -147,15 +147,15 @@ export default function Home() {
       const parsed = JSON.parse(await file.text()); const imported = Array.isArray(parsed) ? parsed : parsed.sessions;
       if (!Array.isArray(imported)) throw new Error('Invalid journal');
       setSessions(imported); setMessage(`${imported.length} sessions imported. This replaced the current journal.`);
-    } catch { setMessage('That file is not a valid ORB Journal export.'); }
+    } catch { setMessage('That file is not a valid Session Prep export.'); }
     event.target.value = '';
   };
 
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand-mark"><span>O</span></div>
-        <div><p className="eyebrow">TRADING WORKSPACE</p><h1>ORB Journal</h1></div>
+        <div className="brand-mark" aria-hidden="true"><ChartCandlestick /></div>
+        <div><p className="eyebrow">TRADING WORKSPACE</p><h1>Session Prep</h1></div>
         <div className="topbar-actions">
           <input ref={importRef} className="sr-only" type="file" accept="application/json,.json" onChange={importJson} />
           <Button type="button" variant="outline" onClick={() => importRef.current?.click()}><ArrowUpFromLine /> Import</Button>

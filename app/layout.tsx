@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ORB Journal — Pre-trade checklist',
-  description: 'A private, local-first opening range breakout checklist and trading journal.',
+  title: 'Session Prep — Pre-trade checklist',
+  description: 'A private, local-first pre-session checklist for opening range traders.',
 };
 
 export default function RootLayout({
