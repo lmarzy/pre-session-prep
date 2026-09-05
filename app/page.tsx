@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownToLine, ArrowUpFromLine, Camera, ChartCandlestick, Check, ChevronRight, ClipboardCheck,
+  ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpFromLine, Camera, ChartCandlestick, Check, ChevronRight, ClipboardCheck,
   FileJson, Image as ImageIcon, Plus, Search, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,11 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 type Bias = 'Bullish' | 'Bearish' | 'Ranging';
 type Verdict = 'Ready' | 'Caution' | 'No trade';
 type CandleDirection = 'Bullish' | 'Bearish';
+type RangeBreak = 'Above' | 'Below';
 type TimeframeCheck = { timeframe: string; structure: Bias; fvg: boolean; wickless: boolean };
 type Session = {
   id: string; createdAt: string; date: string; market: string; session: string; orbMinutes: string;
   timeframeChecks: TimeframeCheck[]; keyLevels: boolean; newsClear: boolean; rangeValue: string;
-  openingCandle: CandleDirection; riskDefined: boolean;
+  openingCandle: CandleDirection; rangeBreak?: RangeBreak; riskDefined: boolean;
   verdict: Verdict; notes: string; screenshots: string[];
 };
 
@@ -59,6 +60,7 @@ export default function Home() {
   const [newsClear, setNewsClear] = useState(false);
   const [rangeValue, setRangeValue] = useState('');
   const [openingCandle, setOpeningCandle] = useState<CandleDirection>('Bullish');
+  const [rangeBreak, setRangeBreak] = useState<RangeBreak | ''>('');
   const [riskDefined, setRiskDefined] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>('Ready');
   const [notes, setNotes] = useState('');
@@ -119,7 +121,7 @@ export default function Home() {
 
   const resetForm = () => {
     setDate(today()); setChecks(newChecks()); setKeyLevels(false);
-    setNewsClear(false); setRangeValue(''); setOpeningCandle('Bullish'); setRiskDefined(false);
+    setNewsClear(false); setRangeValue(''); setOpeningCandle('Bullish'); setRangeBreak(''); setRiskDefined(false);
     setVerdict('Ready'); setNotes(''); setScreenshots([]);
   };
 
@@ -128,6 +130,7 @@ export default function Home() {
     const record: Session = {
       id: crypto.randomUUID(), createdAt: new Date().toISOString(), date, market,
       session, orbMinutes, timeframeChecks: checks, keyLevels, newsClear, rangeValue, openingCandle,
+      rangeBreak: rangeBreak || undefined,
       riskDefined, verdict, notes, screenshots,
     };
     setSessions((current) => [record, ...current]); resetForm(); setMessage('Session saved locally.');
@@ -217,6 +220,13 @@ export default function Home() {
                   ))}
                 </div>
               </div>
+              <div className="candle-field">
+                <label>Range break</label>
+                <div className="break-picker" aria-label="Opening range break direction">
+                  <button type="button" onClick={() => setRangeBreak('Above')} className={rangeBreak === 'Above' ? 'active above' : ''} aria-pressed={rangeBreak === 'Above'}><ArrowUp />Above</button>
+                  <button type="button" onClick={() => setRangeBreak('Below')} className={rangeBreak === 'Below' ? 'active below' : ''} aria-pressed={rangeBreak === 'Below'}><ArrowDown />Below</button>
+                </div>
+              </div>
               <Toggle checked={riskDefined} onChange={() => setRiskDefined(!riskDefined)} label="Risk and invalidation defined" />
             </section>
             <div className="section-title"><span>04</span><div><h3>Evidence & verdict</h3><p>Attach chart context and make the decision explicit.</p></div></div>
@@ -241,12 +251,13 @@ export default function Home() {
                 <Button type="button" variant="outline" onClick={exportJson} disabled={!sessions.length}><ArrowDownToLine /> Backup journal</Button>
               </div>
               {filtered.length ? (
-                <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Market</TableHead><TableHead>Session</TableHead><TableHead>ORB</TableHead><TableHead>Range formed</TableHead><TableHead>Structure</TableHead><TableHead>Evidence</TableHead><TableHead>Verdict</TableHead><TableHead>Notes</TableHead><TableHead /></TableRow></TableHeader>
+                <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Market</TableHead><TableHead>Session</TableHead><TableHead>ORB</TableHead><TableHead>Range formed</TableHead><TableHead>Break</TableHead><TableHead>Structure</TableHead><TableHead>Evidence</TableHead><TableHead>Verdict</TableHead><TableHead>Notes</TableHead><TableHead /></TableRow></TableHeader>
                   <TableBody>{filtered.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{new Date(`${item.date}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
                       <TableCell><strong>{item.market}</strong></TableCell><TableCell>{item.session}</TableCell><TableCell>{item.orbMinutes}m</TableCell>
                       <TableCell><span className={`candle-summary ${(item.openingCandle || 'Bullish').toLowerCase()}`}><i />{item.rangeValue || '—'}</span></TableCell>
+                      <TableCell>{item.rangeBreak ? <span className={`break-badge ${item.rangeBreak.toLowerCase()}`}>{item.rangeBreak === 'Above' ? <ArrowUp /> : <ArrowDown />}{item.rangeBreak}</span> : '—'}</TableCell>
                       <TableCell><div className="bias-dots">{item.timeframeChecks.map((tf) => <span key={tf.timeframe} className={tf.structure.toLowerCase()} title={`${tf.timeframe}: ${tf.structure}`}>{tf.timeframe.split(' ')[0]}</span>)}</div></TableCell>
                       <TableCell>{item.screenshots.length ? <span className="image-count"><ImageIcon /> {item.screenshots.length}</span> : '—'}</TableCell>
                       <TableCell><span className={`verdict-badge ${item.verdict.toLowerCase().replace(' ', '-')}`}>{item.verdict}</span></TableCell>
