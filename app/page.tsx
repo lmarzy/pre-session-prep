@@ -2,8 +2,8 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpFromLine, Camera, ChartCandlestick, Check, ChevronRight, ClipboardCheck,
-  FileJson, Image as ImageIcon, Plus, Search, ShieldCheck, Trash2, X,
+  ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpFromLine, Camera, ChartCandlestick, Check, ClipboardCheck,
+  FileJson, Image as ImageIcon, Pencil, Plus, Search, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +69,7 @@ export default function Home() {
   const [notes, setNotes] = useState('');
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [query, setQuery] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const importRef = useRef<HTMLInputElement>(null);
@@ -128,16 +129,33 @@ export default function Home() {
     setVerdict('Ready'); setNotes(''); setScreenshots([]);
   };
 
+  const editSession = (item: Session) => {
+    setEditingId(item.id); setDate(item.date); setMarket(item.market); setSession(item.session);
+    setOrbMinutes(item.orbMinutes); setChecks(item.timeframeChecks.map((check) => ({ ...check })));
+    setKeyLevels(item.keyLevels); setNewsClear(item.newsClear); setGapIdentified(Boolean(item.gapIdentified));
+    setGapDirection(item.gapDirection ?? ''); setRangeValue(item.rangeValue ?? '');
+    setOpeningCandle(item.openingCandle ?? 'Bullish'); setRangeBreak(item.rangeBreak ?? '');
+    setRiskDefined(item.riskDefined); setVerdict(item.verdict); setNotes(item.notes ?? '');
+    setScreenshots([...(item.screenshots ?? [])]); setMessage('Editing saved session.');
+    document.getElementById('new-session')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null); resetForm(); setMessage('Editing cancelled.');
+  };
+
   const saveSession = (event: FormEvent) => {
     event.preventDefault();
+    const original = editingId ? sessions.find((item) => item.id === editingId) : undefined;
     const record: Session = {
-      id: crypto.randomUUID(), createdAt: new Date().toISOString(), date, market,
+      id: original?.id ?? crypto.randomUUID(), createdAt: original?.createdAt ?? new Date().toISOString(), date, market,
       session, orbMinutes, timeframeChecks: checks, keyLevels, newsClear, gapIdentified,
       gapDirection: gapIdentified && gapDirection ? gapDirection : undefined, rangeValue, openingCandle,
       rangeBreak: rangeBreak || undefined,
       riskDefined, verdict, notes, screenshots,
     };
-    setSessions((current) => [record, ...current]); resetForm(); setMessage('Session saved locally.');
+    setSessions((current) => editingId ? current.map((item) => item.id === editingId ? record : item) : [record, ...current]);
+    setEditingId(null); resetForm(); setMessage(original ? 'Session updated.' : 'Session saved locally.');
   };
 
   const exportJson = () => {
@@ -181,6 +199,7 @@ export default function Home() {
             <div><p className="eyebrow">PRE-MARKET ROUTINE</p><h2>Build the case before the bell.</h2><p>Work top-down, record what you see, then decide if the opening range is worth trading.</p></div>
             <div className="progress-card"><span>{completed}<small>/12 checks</small></span><div><i style={{ width: `${Math.min(100, (completed / 12) * 100)}%` }} /></div><p>Checklist progress</p></div>
           </section>
+          {editingId && <div className="editing-banner" role="status"><Pencil /><span><strong>Editing saved session</strong> Update the checklist below, then save your changes.</span><Button type="button" variant="outline" onClick={cancelEdit}>Cancel edit</Button></div>}
           <form onSubmit={saveSession} className="journal-form">
             <section className="panel session-strip">
               <label>Date<Input required type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
@@ -250,7 +269,7 @@ export default function Home() {
                 <label>Pre-trade verdict</label>
                 <div className="verdict-picker">{(['Ready', 'Caution', 'No trade'] as Verdict[]).map((item) => <button type="button" key={item} className={verdict === item ? 'active' : ''} onClick={() => setVerdict(item)}>{item}</button>)}</div>
                 <label className="notes-label">Notes<Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add observations, reasoning or reminders…" /></label>
-                <Button type="submit" size="lg"><Plus /> Save session</Button><p>No backend. This record will be stored in this browser.</p>
+                <Button type="submit" size="lg">{editingId ? <><Check /> Update session</> : <><Plus /> Save session</>}</Button><p>{editingId ? 'Your changes will replace this saved session.' : 'No backend. This record will be stored in this browser.'}</p>
               </div>
             </section>
           </form>
@@ -275,7 +294,7 @@ export default function Home() {
                       <TableCell>{item.screenshots.length ? <span className="image-count"><ImageIcon /> {item.screenshots.length}</span> : '—'}</TableCell>
                       <TableCell><span className={`verdict-badge ${item.verdict.toLowerCase().replace(' ', '-')}`}>{item.verdict}</span></TableCell>
                       <TableCell className="notes-cell">{item.notes ? <button type="button" className={`note-preview ${expandedNoteId === item.id ? 'expanded' : ''}`} onClick={() => setExpandedNoteId(expandedNoteId === item.id ? null : item.id)} aria-expanded={expandedNoteId === item.id}>{item.notes}</button> : '—'}</TableCell>
-                      <TableCell className="row-actions"><button type="button" onClick={() => setSessions((rows) => rows.filter((row) => row.id !== item.id))} aria-label="Delete session"><Trash2 /></button><ChevronRight /></TableCell>
+                      <TableCell className="row-actions"><button type="button" onClick={() => editSession(item)} aria-label="Edit session" title="Edit session"><Pencil /></button><button type="button" onClick={() => { setSessions((rows) => rows.filter((row) => row.id !== item.id)); if (editingId === item.id) cancelEdit(); }} aria-label="Delete session" title="Delete session"><Trash2 /></button></TableCell>
                     </TableRow>
                   ))}</TableBody>
                 </Table>
