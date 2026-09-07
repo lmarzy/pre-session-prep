@@ -14,10 +14,11 @@ type Bias = 'Bullish' | 'Bearish' | 'Ranging';
 type Verdict = 'Ready' | 'Caution' | 'No trade';
 type CandleDirection = 'Bullish' | 'Bearish';
 type RangeBreak = 'Above' | 'Below';
+type GapDirection = 'Above' | 'Below';
 type TimeframeCheck = { timeframe: string; structure: Bias; fvg: boolean; wickless: boolean };
 type Session = {
   id: string; createdAt: string; date: string; market: string; session: string; orbMinutes: string;
-  timeframeChecks: TimeframeCheck[]; keyLevels: boolean; newsClear: boolean; rangeValue: string;
+  timeframeChecks: TimeframeCheck[]; keyLevels: boolean; newsClear: boolean; gapIdentified?: boolean; gapDirection?: GapDirection; rangeValue: string;
   openingCandle: CandleDirection; rangeBreak?: RangeBreak; riskDefined: boolean;
   verdict: Verdict; notes: string; screenshots: string[];
 };
@@ -58,6 +59,8 @@ export default function Home() {
   const [checks, setChecks] = useState<TimeframeCheck[]>(newChecks);
   const [keyLevels, setKeyLevels] = useState(false);
   const [newsClear, setNewsClear] = useState(false);
+  const [gapIdentified, setGapIdentified] = useState(false);
+  const [gapDirection, setGapDirection] = useState<GapDirection | ''>('');
   const [rangeValue, setRangeValue] = useState('');
   const [openingCandle, setOpeningCandle] = useState<CandleDirection>('Bullish');
   const [rangeBreak, setRangeBreak] = useState<RangeBreak | ''>('');
@@ -86,8 +89,8 @@ export default function Home() {
 
   const completed = useMemo(() => {
     const tf = checks.reduce((sum, check) => sum + Number(check.fvg) + Number(check.wickless), 0);
-    return tf + [keyLevels, newsClear, riskDefined].filter(Boolean).length;
-  }, [checks, keyLevels, newsClear, riskDefined]);
+    return tf + [keyLevels, newsClear, gapIdentified, riskDefined].filter(Boolean).length;
+  }, [checks, keyLevels, newsClear, gapIdentified, riskDefined]);
   const alignment = useMemo(() => {
     const structures = checks.map((check) => check.structure);
     if (structures.every((structure) => structure === 'Bullish')) {
@@ -121,7 +124,7 @@ export default function Home() {
 
   const resetForm = () => {
     setDate(today()); setChecks(newChecks()); setKeyLevels(false);
-    setNewsClear(false); setRangeValue(''); setOpeningCandle('Bullish'); setRangeBreak(''); setRiskDefined(false);
+    setNewsClear(false); setGapIdentified(false); setGapDirection(''); setRangeValue(''); setOpeningCandle('Bullish'); setRangeBreak(''); setRiskDefined(false);
     setVerdict('Ready'); setNotes(''); setScreenshots([]);
   };
 
@@ -129,7 +132,8 @@ export default function Home() {
     event.preventDefault();
     const record: Session = {
       id: crypto.randomUUID(), createdAt: new Date().toISOString(), date, market,
-      session, orbMinutes, timeframeChecks: checks, keyLevels, newsClear, rangeValue, openingCandle,
+      session, orbMinutes, timeframeChecks: checks, keyLevels, newsClear, gapIdentified,
+      gapDirection: gapIdentified && gapDirection ? gapDirection : undefined, rangeValue, openingCandle,
       rangeBreak: rangeBreak || undefined,
       riskDefined, verdict, notes, screenshots,
     };
@@ -175,7 +179,7 @@ export default function Home() {
           {message && <div className="notice" role="status"><Check size={16} /> {message}<button onClick={() => setMessage('')} aria-label="Dismiss"><X size={15} /></button></div>}
           <section id="new-session" className="page-heading">
             <div><p className="eyebrow">PRE-MARKET ROUTINE</p><h2>Build the case before the bell.</h2><p>Work top-down, record what you see, then decide if the opening range is worth trading.</p></div>
-            <div className="progress-card"><span>{completed}<small>/11 checks</small></span><div><i style={{ width: `${Math.min(100, (completed / 11) * 100)}%` }} /></div><p>Checklist progress</p></div>
+            <div className="progress-card"><span>{completed}<small>/12 checks</small></span><div><i style={{ width: `${Math.min(100, (completed / 12) * 100)}%` }} /></div><p>Checklist progress</p></div>
           </section>
           <form onSubmit={saveSession} className="journal-form">
             <section className="panel session-strip">
@@ -188,6 +192,13 @@ export default function Home() {
             <section className="panel context-checks simple-context">
               <Toggle checked={newsClear} onChange={() => setNewsClear(!newsClear)} label="High-impact news checked" />
               <Toggle checked={keyLevels} onChange={() => setKeyLevels(!keyLevels)} label="Key levels marked" />
+              <div className={`gap-control ${gapIdentified ? 'is-active' : ''}`}>
+                <Toggle checked={gapIdentified} onChange={() => { const next = !gapIdentified; setGapIdentified(next); if (!next) setGapDirection(''); }} label="Gap identified" />
+                {gapIdentified && <div className="break-picker compact" aria-label="Gap location">
+                  <button type="button" onClick={() => setGapDirection('Above')} className={gapDirection === 'Above' ? 'active above' : ''} aria-pressed={gapDirection === 'Above'}><ArrowUp />Above</button>
+                  <button type="button" onClick={() => setGapDirection('Below')} className={gapDirection === 'Below' ? 'active below' : ''} aria-pressed={gapDirection === 'Below'}><ArrowDown />Below</button>
+                </div>}
+              </div>
             </section>
             <div className="section-title"><span>02</span><div><h3>Top-down structure</h3><p>Set the directional context on every timeframe.</p></div></div>
             <section className="timeframe-grid">
@@ -251,11 +262,13 @@ export default function Home() {
                 <Button type="button" variant="outline" onClick={exportJson} disabled={!sessions.length}><ArrowDownToLine /> Backup journal</Button>
               </div>
               {filtered.length ? (
-                <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Market</TableHead><TableHead>Session</TableHead><TableHead>ORB</TableHead><TableHead>Range formed</TableHead><TableHead>Break</TableHead><TableHead>Structure</TableHead><TableHead>Evidence</TableHead><TableHead>Verdict</TableHead><TableHead>Notes</TableHead><TableHead /></TableRow></TableHeader>
+                <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Market</TableHead><TableHead>Session</TableHead><TableHead>Gap</TableHead><TableHead>ORB</TableHead><TableHead>Range formed</TableHead><TableHead>Break</TableHead><TableHead>Structure</TableHead><TableHead>Evidence</TableHead><TableHead>Verdict</TableHead><TableHead>Notes</TableHead><TableHead /></TableRow></TableHeader>
                   <TableBody>{filtered.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{new Date(`${item.date}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
-                      <TableCell><strong>{item.market}</strong></TableCell><TableCell>{item.session}</TableCell><TableCell>{item.orbMinutes}m</TableCell>
+                      <TableCell><strong>{item.market}</strong></TableCell><TableCell>{item.session}</TableCell>
+                      <TableCell>{item.gapIdentified ? (item.gapDirection ? <span className={`break-badge ${item.gapDirection.toLowerCase()}`}>{item.gapDirection === 'Above' ? <ArrowUp /> : <ArrowDown />}{item.gapDirection}</span> : 'Yes') : '—'}</TableCell>
+                      <TableCell>{item.orbMinutes}m</TableCell>
                       <TableCell><span className={`candle-summary ${(item.openingCandle || 'Bullish').toLowerCase()}`}><i />{item.rangeValue || '—'}</span></TableCell>
                       <TableCell>{item.rangeBreak ? <span className={`break-badge ${item.rangeBreak.toLowerCase()}`}>{item.rangeBreak === 'Above' ? <ArrowUp /> : <ArrowDown />}{item.rangeBreak}</span> : '—'}</TableCell>
                       <TableCell><div className="bias-dots">{item.timeframeChecks.map((tf) => <span key={tf.timeframe} className={tf.structure.toLowerCase()} title={`${tf.timeframe}: ${tf.structure}`}>{tf.timeframe.split(' ')[0]}</span>)}</div></TableCell>
