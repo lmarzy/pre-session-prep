@@ -182,6 +182,10 @@ export default function Home() {
         <div className="brand-mark" aria-hidden="true"><ChartCandlestick /></div>
         <div><p className="eyebrow">TRADING WORKSPACE</p><h1>Session Prep</h1></div>
         <div className="topbar-actions">
+          <div className="topbar-progress" role="progressbar" aria-label="Checklist progress" aria-valuenow={completed} aria-valuemin={0} aria-valuemax={12}>
+            <div><span>Progress</span><strong>{completed}/12</strong></div>
+            <div className="topbar-progress-track"><i style={{ width: `${Math.min(100, (completed / 12) * 100)}%` }} /></div>
+          </div>
           <input ref={importRef} className="sr-only" type="file" accept="application/json,.json" onChange={importJson} />
           <Button type="button" variant="outline" onClick={() => importRef.current?.click()}><ArrowUpFromLine /> Import</Button>
           <Button type="button" variant="outline" onClick={exportJson} disabled={!sessions.length}><ArrowDownToLine /> Export JSON</Button>
@@ -197,7 +201,6 @@ export default function Home() {
           {message && <div className="notice" role="status"><Check size={16} /> {message}<button onClick={() => setMessage('')} aria-label="Dismiss"><X size={15} /></button></div>}
           <section id="new-session" className="page-heading">
             <div><p className="eyebrow">PRE-MARKET ROUTINE</p><h2>Build the case before the bell.</h2><p>Work top-down, record what you see, then decide if the opening range is worth trading.</p></div>
-            <div className="progress-card"><span>{completed}<small>/12 checks</small></span><div><i style={{ width: `${Math.min(100, (completed / 12) * 100)}%` }} /></div><p>Checklist progress</p></div>
           </section>
           {editingId && <div className="editing-banner" role="status"><Pencil /><span><strong>Editing saved session</strong> Update the checklist below, then save your changes.</span><Button type="button" variant="outline" onClick={cancelEdit}>Cancel edit</Button></div>}
           <form onSubmit={saveSession} className="journal-form">
