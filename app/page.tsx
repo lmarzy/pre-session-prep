@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 type Bias = 'Bullish' | 'Bearish' | 'Ranging';
 type Verdict = 'Ready' | 'Caution' | 'No trade';
+type SetupGrade = 'A' | 'B' | 'C';
 type CandleDirection = 'Bullish' | 'Bearish';
 type RangeBreak = 'Above' | 'Below';
 type GapDirection = 'Above' | 'Below';
@@ -20,7 +21,7 @@ type Session = {
   id: string; createdAt: string; date: string; market: string; session: string; orbMinutes: string;
   timeframeChecks: TimeframeCheck[]; keyLevels: boolean; newsClear: boolean; gapIdentified?: boolean; gapDirection?: GapDirection; rangeValue: string;
   openingCandle: CandleDirection; rangeBreak?: RangeBreak; riskDefined: boolean;
-  verdict: Verdict; notes: string; screenshots: string[];
+  verdict: Verdict; setupGrade?: SetupGrade; notes: string; screenshots: string[];
 };
 
 const STORE_KEY = 'orb-journal-sessions-v1';
@@ -66,6 +67,7 @@ export default function Home() {
   const [rangeBreak, setRangeBreak] = useState<RangeBreak | ''>('');
   const [riskDefined, setRiskDefined] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>('Ready');
+  const [setupGrade, setSetupGrade] = useState<SetupGrade | ''>('');
   const [notes, setNotes] = useState('');
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [query, setQuery] = useState('');
@@ -109,7 +111,7 @@ export default function Home() {
     return { label: 'Mixed structure', detail: 'The higher timeframes are not directionally aligned.', tone: 'mixed' };
   }, [checks]);
   const filtered = sessions.filter((item) =>
-    `${item.market} ${item.session} ${item.date} ${item.verdict}`.toLowerCase().includes(query.toLowerCase()));
+    `${item.market} ${item.session} ${item.date} ${item.verdict} ${item.setupGrade ?? ''}`.toLowerCase().includes(query.toLowerCase()));
   const updateCheck = (index: number, patch: Partial<TimeframeCheck>) =>
     setChecks((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
 
@@ -126,7 +128,7 @@ export default function Home() {
   const resetForm = () => {
     setDate(today()); setChecks(newChecks()); setKeyLevels(false);
     setNewsClear(false); setGapIdentified(false); setGapDirection(''); setRangeValue(''); setOpeningCandle('Bullish'); setRangeBreak(''); setRiskDefined(false);
-    setVerdict('Ready'); setNotes(''); setScreenshots([]);
+    setVerdict('Ready'); setSetupGrade(''); setNotes(''); setScreenshots([]);
   };
 
   const editSession = (item: Session) => {
@@ -135,7 +137,7 @@ export default function Home() {
     setKeyLevels(item.keyLevels); setNewsClear(item.newsClear); setGapIdentified(Boolean(item.gapIdentified));
     setGapDirection(item.gapDirection ?? ''); setRangeValue(item.rangeValue ?? '');
     setOpeningCandle(item.openingCandle ?? 'Bullish'); setRangeBreak(item.rangeBreak ?? '');
-    setRiskDefined(item.riskDefined); setVerdict(item.verdict); setNotes(item.notes ?? '');
+    setRiskDefined(item.riskDefined); setVerdict(item.verdict); setSetupGrade(item.setupGrade ?? ''); setNotes(item.notes ?? '');
     setScreenshots([...(item.screenshots ?? [])]); setMessage('Editing saved session.');
     document.getElementById('new-session')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -152,7 +154,7 @@ export default function Home() {
       session, orbMinutes, timeframeChecks: checks, keyLevels, newsClear, gapIdentified,
       gapDirection: gapIdentified && gapDirection ? gapDirection : undefined, rangeValue, openingCandle,
       rangeBreak: rangeBreak || undefined,
-      riskDefined, verdict, notes, screenshots,
+      riskDefined, verdict, setupGrade: setupGrade || undefined, notes, screenshots,
     };
     setSessions((current) => editingId ? current.map((item) => item.id === editingId ? record : item) : [record, ...current]);
     setEditingId(null); resetForm(); setMessage(original ? 'Session updated.' : 'Session saved locally.');
@@ -271,6 +273,8 @@ export default function Home() {
               <div className="verdict-block">
                 <label>Pre-trade verdict</label>
                 <div className="verdict-picker">{(['Ready', 'Caution', 'No trade'] as Verdict[]).map((item) => <button type="button" key={item} className={verdict === item ? 'active' : ''} onClick={() => setVerdict(item)}>{item}</button>)}</div>
+                <label className="grade-label">Setup grade</label>
+                <div className="grade-picker" aria-label="Setup grade">{(['A', 'B', 'C'] as SetupGrade[]).map((grade) => <button type="button" key={grade} className={setupGrade === grade ? `active grade-${grade.toLowerCase()}` : ''} onClick={() => setSetupGrade(grade)} aria-pressed={setupGrade === grade}><strong>{grade}</strong><span>setup</span></button>)}</div>
                 <label className="notes-label">Notes<Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add observations, reasoning or reminders…" /></label>
                 <Button type="submit" size="lg">{editingId ? <><Check /> Update session</> : <><Plus /> Save session</>}</Button><p>{editingId ? 'Your changes will replace this saved session.' : 'No backend. This record will be stored in this browser.'}</p>
               </div>
@@ -284,7 +288,7 @@ export default function Home() {
                 <Button type="button" variant="outline" onClick={exportJson} disabled={!sessions.length}><ArrowDownToLine /> Backup journal</Button>
               </div>
               {filtered.length ? (
-                <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Market</TableHead><TableHead>Session</TableHead><TableHead>Gap</TableHead><TableHead>ORB</TableHead><TableHead>Range formed</TableHead><TableHead>Break</TableHead><TableHead>Structure</TableHead><TableHead>Evidence</TableHead><TableHead>Verdict</TableHead><TableHead>Notes</TableHead><TableHead /></TableRow></TableHeader>
+                <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Market</TableHead><TableHead>Session</TableHead><TableHead>Gap</TableHead><TableHead>ORB</TableHead><TableHead>Range formed</TableHead><TableHead>Break</TableHead><TableHead>Structure</TableHead><TableHead>Evidence</TableHead><TableHead>Verdict</TableHead><TableHead>Grade</TableHead><TableHead>Notes</TableHead><TableHead /></TableRow></TableHeader>
                   <TableBody>{filtered.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{new Date(`${item.date}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
@@ -296,6 +300,7 @@ export default function Home() {
                       <TableCell><div className="bias-dots">{item.timeframeChecks.map((tf) => <span key={tf.timeframe} className={tf.structure.toLowerCase()} title={`${tf.timeframe}: ${tf.structure}`}>{tf.timeframe.split(' ')[0]}</span>)}</div></TableCell>
                       <TableCell>{item.screenshots.length ? <span className="image-count"><ImageIcon /> {item.screenshots.length}</span> : '—'}</TableCell>
                       <TableCell><span className={`verdict-badge ${item.verdict.toLowerCase().replace(' ', '-')}`}>{item.verdict}</span></TableCell>
+                      <TableCell>{item.setupGrade ? <span className={`grade-badge grade-${item.setupGrade.toLowerCase()}`}>{item.setupGrade}</span> : '—'}</TableCell>
                       <TableCell className="notes-cell">{item.notes ? <button type="button" className={`note-preview ${expandedNoteId === item.id ? 'expanded' : ''}`} onClick={() => setExpandedNoteId(expandedNoteId === item.id ? null : item.id)} aria-expanded={expandedNoteId === item.id}>{item.notes}</button> : '—'}</TableCell>
                       <TableCell className="row-actions"><button type="button" onClick={() => editSession(item)} aria-label="Edit session" title="Edit session"><Pencil /></button><button type="button" onClick={() => { setSessions((rows) => rows.filter((row) => row.id !== item.id)); if (editingId === item.id) cancelEdit(); }} aria-label="Delete session" title="Delete session"><Trash2 /></button></TableCell>
                     </TableRow>
