@@ -71,6 +71,8 @@ export default function Home() {
   const [notes, setNotes] = useState('');
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [query, setQuery] = useState('');
+  const [marketFilter, setMarketFilter] = useState('All');
+  const [sessionFilter, setSessionFilter] = useState('All');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -110,8 +112,12 @@ export default function Home() {
     }
     return { label: 'Mixed structure', detail: 'The higher timeframes are not directionally aligned.', tone: 'mixed' };
   }, [checks]);
-  const filtered = sessions.filter((item) =>
-    `${item.market} ${item.session} ${item.date} ${item.verdict} ${item.setupGrade ?? ''}`.toLowerCase().includes(query.toLowerCase()));
+  const filtered = sessions.filter((item) => {
+    const matchesSearch = `${item.market} ${item.session} ${item.date} ${item.verdict} ${item.setupGrade ?? ''}`.toLowerCase().includes(query.toLowerCase());
+    const matchesMarket = marketFilter === 'All' || item.market === marketFilter;
+    const matchesSession = sessionFilter === 'All' || item.session === sessionFilter;
+    return matchesSearch && matchesMarket && matchesSession;
+  });
   const updateCheck = (index: number, patch: Partial<TimeframeCheck>) =>
     setChecks((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
 
@@ -284,7 +290,11 @@ export default function Home() {
             <div className="section-title journal-title"><span>05</span><div><h3>Session journal</h3><p>{sessions.length} saved session{sessions.length === 1 ? '' : 's'} on this device.</p></div></div>
             <div className="panel table-panel">
               <div className="table-toolbar">
-                <div className="search-box"><Search /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search market, date or verdict…" /></div>
+                <div className="table-filters">
+                  <div className="search-box"><Search /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search date, verdict or grade…" /></div>
+                  <label className="filter-select"><span>Market</span><select value={marketFilter} onChange={(e) => setMarketFilter(e.target.value)}><option>All</option><option>Nas</option><option>Gold</option></select></label>
+                  <label className="filter-select"><span>Session</span><select value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)}><option>All</option><option>Asia</option><option>Frankfurt</option><option>London</option><option>New York</option></select></label>
+                </div>
                 <Button type="button" variant="outline" onClick={exportJson} disabled={!sessions.length}><ArrowDownToLine /> Backup journal</Button>
               </div>
               {filtered.length ? (
