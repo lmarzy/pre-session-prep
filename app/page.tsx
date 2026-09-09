@@ -23,7 +23,7 @@ type Session = {
   timeframeChecks: TimeframeCheck[]; keyLevels: boolean; newsClear: boolean; gapIdentified?: boolean; gapDirection?: GapDirection; rangeValue: string;
   openingCandle: CandleDirection; rangeBreak?: RangeBreak; riskDefined: boolean;
   verdict: Verdict; setupGrade?: SetupGrade; notes: string; screenshots: string[];
-  tradeTaken?: boolean; tradeOutcome?: TradeOutcome; flipTradeTaken?: boolean; flipTradeOutcome?: TradeOutcome;
+  tradeOutcome?: TradeOutcome; flipTradeTaken?: boolean; flipTradeOutcome?: TradeOutcome;
 };
 
 const STORE_KEY = 'orb-journal-sessions-v1';
@@ -72,7 +72,6 @@ export default function Home() {
   const [setupGrade, setSetupGrade] = useState<SetupGrade | ''>('');
   const [notes, setNotes] = useState('');
   const [screenshots, setScreenshots] = useState<string[]>([]);
-  const [tradeTaken, setTradeTaken] = useState(false);
   const [tradeOutcome, setTradeOutcome] = useState<TradeOutcome | ''>('');
   const [flipTradeTaken, setFlipTradeTaken] = useState(false);
   const [flipTradeOutcome, setFlipTradeOutcome] = useState<TradeOutcome | ''>('');
@@ -141,7 +140,7 @@ export default function Home() {
     setDate(today()); setChecks(newChecks()); setKeyLevels(false);
     setNewsClear(false); setGapIdentified(false); setGapDirection(''); setRangeValue(''); setOpeningCandle('Bullish'); setRangeBreak(''); setRiskDefined(false);
     setVerdict('Ready'); setSetupGrade(''); setNotes(''); setScreenshots([]);
-    setTradeTaken(false); setTradeOutcome(''); setFlipTradeTaken(false); setFlipTradeOutcome('');
+    setTradeOutcome(''); setFlipTradeTaken(false); setFlipTradeOutcome('');
   };
 
   const editSession = (item: Session) => {
@@ -151,9 +150,9 @@ export default function Home() {
     setGapDirection(item.gapDirection ?? ''); setRangeValue(item.rangeValue ?? '');
     setOpeningCandle(item.openingCandle ?? 'Bullish'); setRangeBreak(item.rangeBreak ?? '');
     setRiskDefined(item.riskDefined); setVerdict(item.verdict); setSetupGrade(item.setupGrade ?? ''); setNotes(item.notes ?? '');
-    setScreenshots([...(item.screenshots ?? [])]); setTradeTaken(Boolean(item.tradeTaken));
-    setTradeOutcome(item.tradeOutcome ?? ''); setFlipTradeTaken(Boolean(item.flipTradeTaken));
-    setFlipTradeOutcome(item.flipTradeOutcome ?? ''); setMessage('Editing saved session.');
+    setScreenshots([...(item.screenshots ?? [])]); setTradeOutcome(item.verdict === 'No trade' ? '' : item.tradeOutcome ?? '');
+    setFlipTradeTaken(item.verdict !== 'No trade' && Boolean(item.flipTradeTaken));
+    setFlipTradeOutcome(item.verdict === 'No trade' ? '' : item.flipTradeOutcome ?? ''); setMessage('Editing saved session.');
     document.getElementById('new-session')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -169,10 +168,10 @@ export default function Home() {
       session, orbMinutes, timeframeChecks: checks, keyLevels, newsClear, gapIdentified,
       gapDirection: gapIdentified && gapDirection ? gapDirection : undefined, rangeValue, openingCandle,
       rangeBreak: rangeBreak || undefined,
-      riskDefined, verdict, setupGrade: setupGrade || undefined, notes, screenshots, tradeTaken,
-      tradeOutcome: tradeTaken && tradeOutcome ? tradeOutcome : undefined,
-      flipTradeTaken: tradeTaken && tradeOutcome === 'Loss' ? flipTradeTaken : undefined,
-      flipTradeOutcome: tradeTaken && tradeOutcome === 'Loss' && flipTradeTaken && flipTradeOutcome ? flipTradeOutcome : undefined,
+      riskDefined, verdict, setupGrade: setupGrade || undefined, notes, screenshots,
+      tradeOutcome: verdict !== 'No trade' && tradeOutcome ? tradeOutcome : undefined,
+      flipTradeTaken: verdict !== 'No trade' && tradeOutcome === 'Loss' ? flipTradeTaken : undefined,
+      flipTradeOutcome: verdict !== 'No trade' && tradeOutcome === 'Loss' && flipTradeTaken && flipTradeOutcome ? flipTradeOutcome : undefined,
     };
     setSessions((current) => editingId ? current.map((item) => item.id === editingId ? record : item) : [record, ...current]);
     setEditingId(null); resetForm(); setMessage(original ? 'Session updated.' : 'Session saved locally.');
@@ -290,7 +289,7 @@ export default function Home() {
               </div>
               <div className="verdict-block">
                 <label>Pre-trade verdict</label>
-                <div className="verdict-picker">{(['Ready', 'Caution', 'No trade'] as Verdict[]).map((item) => <button type="button" key={item} className={verdict === item ? 'active' : ''} onClick={() => setVerdict(item)}>{item}</button>)}</div>
+                <div className="verdict-picker">{(['Ready', 'Caution', 'No trade'] as Verdict[]).map((item) => <button type="button" key={item} className={verdict === item ? 'active' : ''} onClick={() => { setVerdict(item); if (item === 'No trade') { setTradeOutcome(''); setFlipTradeTaken(false); setFlipTradeOutcome(''); } }}>{item}</button>)}</div>
                 <label className="grade-label">Setup grade</label>
                 <div className="grade-picker" aria-label="Setup grade">{(['A', 'B', 'C'] as SetupGrade[]).map((grade) => <button type="button" key={grade} className={setupGrade === grade ? `active grade-${grade.toLowerCase()}` : ''} onClick={() => setSetupGrade(grade)} aria-pressed={setupGrade === grade}><strong>{grade}</strong><span>setup</span></button>)}</div>
                 <label className="notes-label">Notes<Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add observations, reasoning or reminders…" /></label>
@@ -298,12 +297,11 @@ export default function Home() {
             </section>
             <div className="section-title"><span>05</span><div><h3>Trade outcome</h3><p>Record what happened after the pre-trade decision.</p></div></div>
             <section className="panel outcome-panel">
-              <div className="outcome-flow">
-                <div className="outcome-step"><div className="outcome-step-header"><span>1</span><strong>Execution</strong></div><Toggle checked={tradeTaken} onChange={() => { const next = !tradeTaken; setTradeTaken(next); if (!next) { setTradeOutcome(''); setFlipTradeTaken(false); setFlipTradeOutcome(''); } }} label="Trade taken" /></div>
-                {tradeTaken && <div className="outcome-step"><div className="outcome-step-header"><span>2</span><strong>Initial result</strong></div><div className="outcome-picker" aria-label="Initial trade result">{(['Win', 'Loss'] as TradeOutcome[]).map((outcome) => <button type="button" key={outcome} className={tradeOutcome === outcome ? `active ${outcome.toLowerCase()}` : ''} onClick={() => { setTradeOutcome(outcome); if (outcome === 'Win') { setFlipTradeTaken(false); setFlipTradeOutcome(''); } }} aria-pressed={tradeOutcome === outcome}>{outcome}</button>)}</div></div>}
-                {tradeTaken && tradeOutcome === 'Loss' && <div className="outcome-step"><div className="outcome-step-header"><span>3</span><strong>Recovery</strong></div><Toggle checked={flipTradeTaken} onChange={() => { const next = !flipTradeTaken; setFlipTradeTaken(next); if (!next) setFlipTradeOutcome(''); }} label="Flip trade taken" /></div>}
-                {tradeTaken && tradeOutcome === 'Loss' && flipTradeTaken && <div className="outcome-step"><div className="outcome-step-header"><span>4</span><strong>Flip result</strong></div><div className="outcome-picker" aria-label="Flip trade result">{(['Win', 'Loss'] as TradeOutcome[]).map((outcome) => <button type="button" key={outcome} className={flipTradeOutcome === outcome ? `active ${outcome.toLowerCase()}` : ''} onClick={() => setFlipTradeOutcome(outcome)} aria-pressed={flipTradeOutcome === outcome}>{outcome}</button>)}</div></div>}
-              </div>
+              {verdict === 'No trade' ? <div className="outcome-empty"><strong>No trade selected</strong><span>There is no result to record for this session.</span></div> : <div className="outcome-flow">
+                <div className="outcome-step"><div className="outcome-step-header"><span>1</span><strong>Initial result</strong></div><div className="outcome-picker" aria-label="Initial trade result">{(['Win', 'Loss'] as TradeOutcome[]).map((outcome) => <button type="button" key={outcome} className={tradeOutcome === outcome ? `active ${outcome.toLowerCase()}` : ''} onClick={() => { setTradeOutcome(outcome); if (outcome === 'Win') { setFlipTradeTaken(false); setFlipTradeOutcome(''); } }} aria-pressed={tradeOutcome === outcome}>{outcome}</button>)}</div></div>
+                {tradeOutcome === 'Loss' && <div className="outcome-step"><div className="outcome-step-header"><span>2</span><strong>Recovery</strong></div><Toggle checked={flipTradeTaken} onChange={() => { const next = !flipTradeTaken; setFlipTradeTaken(next); if (!next) setFlipTradeOutcome(''); }} label="Flip trade taken" /></div>}
+                {tradeOutcome === 'Loss' && flipTradeTaken && <div className="outcome-step"><div className="outcome-step-header"><span>3</span><strong>Flip result</strong></div><div className="outcome-picker" aria-label="Flip trade result">{(['Win', 'Loss'] as TradeOutcome[]).map((outcome) => <button type="button" key={outcome} className={flipTradeOutcome === outcome ? `active ${outcome.toLowerCase()}` : ''} onClick={() => setFlipTradeOutcome(outcome)} aria-pressed={flipTradeOutcome === outcome}>{outcome}</button>)}</div></div>}
+              </div>}
               <div className="save-block"><p>{editingId ? 'Your changes will replace this saved session.' : 'Saved privately in this browser.'}</p><Button type="submit" size="lg">{editingId ? <><Check /> Update session</> : <><Plus /> Save session</>}</Button></div>
             </section>
           </form>
@@ -332,7 +330,7 @@ export default function Home() {
                       <TableCell>{item.screenshots.length ? <span className="image-count"><ImageIcon /> {item.screenshots.length}</span> : '—'}</TableCell>
                       <TableCell><span className={`verdict-badge ${item.verdict.toLowerCase().replace(' ', '-')}`}>{item.verdict}</span></TableCell>
                       <TableCell>{item.setupGrade ? <span className={`grade-badge grade-${item.setupGrade.toLowerCase()}`}>{item.setupGrade}</span> : '—'}</TableCell>
-                      <TableCell>{item.tradeTaken === undefined ? '—' : !item.tradeTaken ? <span className="outcome-badge not-taken">Not taken</span> : item.tradeOutcome ? <span className={`outcome-badge ${item.tradeOutcome.toLowerCase()}`}>{item.tradeOutcome}{item.tradeOutcome === 'Loss' && item.flipTradeTaken ? ` → Flip ${item.flipTradeOutcome ?? 'pending'}` : item.tradeOutcome === 'Loss' && item.flipTradeTaken === false ? ' · No flip' : ''}</span> : <span className="outcome-badge taken">Taken</span>}</TableCell>
+                      <TableCell>{item.verdict === 'No trade' ? <span className="outcome-badge not-taken">Not taken</span> : item.tradeOutcome ? <span className={`outcome-badge ${item.tradeOutcome.toLowerCase()}`}>{item.tradeOutcome}{item.tradeOutcome === 'Loss' && item.flipTradeTaken ? ` → Flip ${item.flipTradeOutcome ?? 'pending'}` : item.tradeOutcome === 'Loss' && item.flipTradeTaken === false ? ' · No flip' : ''}</span> : <span className="outcome-badge taken">Pending</span>}</TableCell>
                       <TableCell className="notes-cell">{item.notes ? <button type="button" className={`note-preview ${expandedNoteId === item.id ? 'expanded' : ''}`} onClick={() => setExpandedNoteId(expandedNoteId === item.id ? null : item.id)} aria-expanded={expandedNoteId === item.id}>{item.notes}</button> : '—'}</TableCell>
                       <TableCell className="row-actions"><button type="button" onClick={() => editSession(item)} aria-label="Edit session" title="Edit session"><Pencil /></button><button type="button" onClick={() => { setSessions((rows) => rows.filter((row) => row.id !== item.id)); if (editingId === item.id) cancelEdit(); }} aria-label="Delete session" title="Delete session"><Trash2 /></button></TableCell>
                     </TableRow>
